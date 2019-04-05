@@ -76,10 +76,6 @@ describe(function() {
 
     process.chdir(localDir);
 
-    // this prefixes /private in OSX...
-    // let's us do === against it later
-    localDir = process.cwd();
-
     let promise = gitDiffApply({
       remoteUrl: remoteUrl || remoteDir,
       startTag,
@@ -214,7 +210,7 @@ D  removed-unchanged.txt
     });
 
     expect(isGitClean({ cwd: localDir })).to.be.ok;
-    expect(process.cwd()).to.equal(localDir);
+    expect(process.cwd()).to.equal(yield fs.realpath(localDir));
   }));
 
   it('does nothing when tags match', co.wrap(function* () {
@@ -228,7 +224,7 @@ D  removed-unchanged.txt
     });
 
     expect(isGitClean({ cwd: localDir })).to.be.ok;
-    expect(process.cwd()).to.equal(localDir);
+    expect(process.cwd()).to.equal(yield fs.realpath(localDir));
 
     expect(stderr).to.contain('Tags match, nothing to apply');
     expect(stderr).to.not.contain('UnhandledPromiseRejectionWarning');
@@ -243,7 +239,7 @@ D  removed-unchanged.txt
       noGit: true
     });
 
-    expect(process.cwd()).to.equal(localDir);
+    expect(process.cwd()).to.equal(yield fs.realpath(localDir));
 
     expect(stderr).to.contain('Not a git repository');
     expect(stderr).to.not.contain('UnhandledPromiseRejectionWarning');
@@ -258,7 +254,7 @@ D  removed-unchanged.txt
     });
 
     expect(isGitClean({ cwd: localDir })).to.be.ok;
-    expect(process.cwd()).to.equal(localDir);
+    expect(process.cwd()).to.equal(yield fs.realpath(localDir));
 
     yield fixtureCompare({
       mergeFixtures: 'test/fixtures/merge/no-change-between-tags'
@@ -416,7 +412,7 @@ D  removed-unchanged.txt
 
       expect(isGitClean({ cwd: localDir })).to.be.ok;
       expect(getCheckedOutBranchName({ cwd: localDir })).to.equal('foo');
-      expect(process.cwd()).to.equal(localDir);
+      expect(process.cwd()).to.equal(yield fs.realpath(localDir));
 
       expect(stderr).to.contain('test copy failed');
     }));
@@ -445,7 +441,7 @@ D  removed-unchanged.txt
 
       expect(isGitClean({ cwd: localDir })).to.be.ok;
       expect(getCheckedOutBranchName({ cwd: localDir })).to.equal('foo');
-      expect(process.cwd()).to.equal(localDir);
+      expect(process.cwd()).to.equal(yield fs.realpath(localDir));
 
       expect(stderr).to.contain('test copy failed');
     }));
@@ -474,7 +470,7 @@ D  removed-unchanged.txt
 
       expect(isGitClean({ cwd: localDir })).to.be.ok;
       expect(getCheckedOutBranchName({ cwd: localDir })).to.equal('foo');
-      expect(process.cwd()).to.equal(localDir);
+      expect(process.cwd()).to.equal(yield fs.realpath(localDir));
 
       expect(stderr).to.contain('test apply failed');
     }));
@@ -498,7 +494,7 @@ D  removed-unchanged.txt
 
       expect(isGitClean({ cwd: localDir })).to.be.ok;
       expect(getCheckedOutBranchName({ cwd: localDir })).to.equal('foo');
-      expect(process.cwd()).to.equal(localDir);
+      expect(process.cwd()).to.equal(yield fs.realpath(localDir));
 
       expect(stderr).to.contain('test orphan failed');
     }));
@@ -581,7 +577,7 @@ D  removed-unchanged.txt
 
       expect(isGitClean({ cwd: localDir })).to.be.ok;
       expect(getCheckedOutBranchName({ cwd: localDir })).to.equal('foo');
-      expect(process.cwd()).to.equal(localDir);
+      expect(process.cwd()).to.equal(yield fs.realpath(localDir));
 
       expect(stderr).to.contain('test remove failed');
     }));
@@ -611,7 +607,7 @@ D  removed-unchanged.txt
 
       expect(isGitClean({ cwd: localDir })).to.be.ok;
       expect(getCheckedOutBranchName({ cwd: localDir })).to.equal('foo');
-      expect(process.cwd()).to.equal(localDir);
+      expect(process.cwd()).to.equal(yield fs.realpath(localDir));
 
       expect(stderr).to.contain('test copy failed');
     }));
@@ -636,7 +632,7 @@ D  removed-unchanged.txt
 
       expect(isGitClean({ cwd: localDir })).to.be.ok;
       expect(getCheckedOutBranchName({ cwd: localDir })).to.equal('foo');
-      expect(process.cwd()).to.equal(localDir);
+      expect(process.cwd()).to.equal(yield fs.realpath(localDir));
 
       expect(stderr).to.contain('test reset failed');
     }));
@@ -761,18 +757,14 @@ D  removed-unchanged.txt
   }));
 
   it('handles ignored broken symlinks', co.wrap(function* () {
-    // another OSX /private workaround
-    let realpath = {};
-
     let createBrokenSymlink = co.wrap(function* (srcpath, dstpath) {
       yield fs.ensureFile(srcpath);
       yield fs.symlink(srcpath, dstpath);
-      realpath[srcpath] = yield fs.realpath(srcpath);
       yield fs.remove(srcpath);
     });
 
     let assertBrokenSymlink = co.wrap(function* (srcpath, dstpath) {
-      expect(realpath[yield fs.readlink(dstpath)]).to.equal(srcpath);
+      expect(yield fs.readlink(dstpath)).to.equal(srcpath);
     });
 
     yield merge({
