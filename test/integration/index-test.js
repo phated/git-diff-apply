@@ -29,7 +29,7 @@ async function ensureDir(dirpath) {
 
 const cpr = path.join(import.meta.dirname, "../helpers/cpr.js");
 
-describe("git-diff-apply", { timeout: 50000 }, function () {
+describe("git-diff-apply", function () {
   let cwd = process.cwd();
   let rootDir;
   let localDir;
