@@ -1,14 +1,9 @@
-'use strict';
+import { spawn } from "./run.js";
 
-const { spawn } = require('./run');
-
-async function gitStatus(options) {
-  return await spawn('git', ['status', '--porcelain'], options);
+export async function gitStatus(options) {
+  return await spawn("git", ["status", "--porcelain"], options);
 }
 
-async function isGitClean(options) {
-  return !await gitStatus(options);
+export async function isGitClean(options) {
+  return !(await gitStatus(options));
 }
-
-module.exports = gitStatus;
-module.exports.isGitClean = isGitClean;

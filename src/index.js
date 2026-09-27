@@ -1,38 +1,32 @@
-'use strict';
+import os from "node:os";
+import fs from "node:fs/promises";
+import path from "node:path";
+import crypto from "node:crypto";
+import { createWriteStream } from "node:fs";
 
-const path = require('path');
-const { promisify } = require('util');
-const tmpDir = promisify(require('tmp').dir);
-const fs = require('fs-extra');
-const uuidv1 = require('uuid/v1');
-const debug = require('debug')('git-diff-apply');
-const utils = require('./utils');
-const getRootDir = require('./get-root-dir');
-const getSubDir = require('./get-sub-dir');
-const gitInit = require('./git-init');
-const gitStatus = require('./git-status');
-const commit = require('./commit');
-const checkOutTag = require('./check-out-tag');
-const convertToObj = require('./convert-to-obj');
-const resolveConflicts = require('./resolve-conflicts');
-const commitAndTag = require('./commit-and-tag');
-const gitRemoveAll = require('./git-remove-all');
-const createCustomRemote = require('./create-custom-remote');
-const { exec, spawn } = require('./run');
+import utils from "./utils.js";
+import { getRootDir } from "./get-root-dir.js";
+import { getSubDir } from "./get-sub-dir.js";
+import { gitInit, gitConfigInit } from "./git-init.js";
+import { gitStatus, isGitClean } from "./git-status.js";
+import { commit } from "./commit.js";
+import { checkOutTag } from "./check-out-tag.js";
+import { convertToObj } from "./convert-to-obj.js";
+import { resolveConflicts } from "./resolve-conflicts.js";
+import { commitAndTag } from "./commit-and-tag.js";
+import { gitRemoveAll } from "./git-remove-all.js";
+import { createCustomRemote } from "./create-custom-remote.js";
+import { exec, spawn } from "./run.js";
 
-const { isGitClean } = gitStatus;
-const { gitConfigInit } = gitInit;
+const tempBranchName = crypto.randomUUID();
 
-const tempBranchName = uuidv1();
+const fallbackTagName = "tag-not-supplied";
 
-const fallbackTagName = 'tag-not-supplied';
-
-async function ensureDir(dir) {
-  debug('ensureDir', dir);
-  await fs.ensureDir(dir);
+function tmpDir() {
+  return fs.mkdtemp(path.join(os.tmpdir(), "git-diff-apply-"));
 }
 
-module.exports = async function gitDiffApply({
+export default async function gitDiffApply({
   cwd = process.cwd(),
   remoteUrl,
   startTag,
@@ -43,7 +37,7 @@ module.exports = async function gitDiffApply({
   init,
   createCustomDiff,
   startCommand,
-  endCommand
+  endCommand,
 }) {
   let _tmpDir;
   let tmpWorkingDir;
@@ -60,14 +54,14 @@ module.exports = async function gitDiffApply({
 
   if (reset || init) {
     if (!endTag) {
-      throw 'You must supply an end tag';
+      throw "You must supply an end tag";
     }
   } else {
     if (!createCustomDiff && !(startTag && endTag)) {
-      throw 'You must supply a start tag and an end tag';
+      throw "You must supply a start tag and an end tag";
     }
     if (createCustomDiff && !startTag && !endTag) {
-      throw 'You must supply a start tag or an end tag';
+      throw "You must supply a start tag or an end tag";
     }
   }
 
@@ -82,16 +76,16 @@ module.exports = async function gitDiffApply({
     } else {
       await checkOutTag(safeStartTag, { cwd: _tmpDir });
 
-      from = convertToObj(_tmpDir, ignoredFiles);
+      from = await convertToObj(_tmpDir, ignoredFiles);
     }
 
     await checkOutTag(safeEndTag, { cwd: _tmpDir });
 
-    let to = convertToObj(_tmpDir, ignoredFiles);
+    let to = await convertToObj(_tmpDir, ignoredFiles);
 
     return {
       from,
-      to
+      to,
     };
   }
 
@@ -103,7 +97,7 @@ module.exports = async function gitDiffApply({
     let newTmpSubDir = path.join(newTmpDir, subDir);
 
     async function copyToSubDir(tag) {
-      await ensureDir(newTmpSubDir);
+      await fs.mkdir(newTmpSubDir, { recursive: true });
 
       await checkOutTag(tag, { cwd: _tmpDir });
 
@@ -132,21 +126,27 @@ module.exports = async function gitDiffApply({
     for (let ignoredFile of ignoredFiles) {
       // An exist check is not good enough.
       // `git checkout` will fail unless it is also tracked.
-      let isTracked = await spawn('git', ['ls-files', ignoredFile], { cwd });
+      let isTracked = await spawn("git", ["ls-files", ignoredFile], { cwd });
       if (isTracked) {
-        await spawn('git', ['checkout', '--', ignoredFile], { cwd });
+        await spawn("git", ["checkout", "--", ignoredFile], { cwd });
       } else {
-        await fs.remove(path.join(cwd, ignoredFile));
+        try {
+          await fs.rm(path.join(cwd, ignoredFile), { recursive: true });
+        } catch {
+          // Ignored if no file to remove
+        }
       }
     }
   }
 
   async function createPatchFile() {
-    let patchFile = path.join(await tmpDir(), 'file.patch');
-    let ps = spawn('git', ['diff', safeStartTag, safeEndTag, '--binary'], { cwd: _tmpDir });
-    ps.stdout.pipe(fs.createWriteStream(patchFile));
+    let patchFile = path.join(await tmpDir(), "file.patch");
+    let ps = spawn("git", ["diff", safeStartTag, safeEndTag, "--binary"], {
+      cwd: _tmpDir,
+    });
+    ps.stdout.pipe(createWriteStream(patchFile));
     await ps;
-    if (await fs.readFile(patchFile, 'utf8') !== '') {
+    if ((await fs.readFile(patchFile, "utf8")) !== "") {
       return patchFile;
     }
   }
@@ -154,7 +154,9 @@ module.exports = async function gitDiffApply({
   async function applyPatch(patchFile) {
     // --whitespace=fix seems to prevent any unnecessary conflicts with line endings
     // https://stackoverflow.com/questions/6308625/how-to-avoid-git-apply-changing-line-endings#comment54419617_11189296
-    await spawn('git', ['apply', '--whitespace=fix', patchFile], { cwd: _tmpDir });
+    await spawn("git", ["apply", "--whitespace=fix", patchFile], {
+      cwd: _tmpDir,
+    });
   }
 
   async function go() {
@@ -169,7 +171,7 @@ module.exports = async function gitDiffApply({
 
       await copy();
 
-      await utils.spawn('git', ['reset'], { cwd });
+      await utils.spawn("git", ["reset"], { cwd });
 
       await resetIgnoredFiles(cwd);
 
@@ -178,8 +180,8 @@ module.exports = async function gitDiffApply({
 
     await checkOutTag(safeStartTag, { cwd: _tmpDir });
 
-    await spawn('git', ['branch', tempBranchName], { cwd: _tmpDir });
-    await spawn('git', ['checkout', tempBranchName], { cwd: _tmpDir });
+    await spawn("git", ["branch", tempBranchName], { cwd: _tmpDir });
+    await spawn("git", ["checkout", tempBranchName], { cwd: _tmpDir });
 
     let patchFile = await createPatchFile();
     if (!patchFile) {
@@ -190,31 +192,31 @@ module.exports = async function gitDiffApply({
 
     await resetIgnoredFiles(tmpWorkingDir);
 
-    let wereAnyChanged = !await isGitClean({ cwd: _tmpDir });
+    let wereAnyChanged = !(await isGitClean({ cwd: _tmpDir }));
 
     if (wereAnyChanged) {
-      let message = [startTag, endTag].filter(Boolean).join('...');
+      let message = [startTag, endTag].filter(Boolean).join("...");
 
       await commit(message, { cwd: _tmpDir });
 
-      let sha = await spawn('git', ['rev-parse', 'HEAD'], { cwd: _tmpDir });
+      let sha = await spawn("git", ["rev-parse", "HEAD"], { cwd: _tmpDir });
 
-      await spawn('git', ['remote', 'add', tempBranchName, _tmpDir], { cwd });
-      await spawn('git', ['fetch', '--no-tags', tempBranchName], { cwd });
+      await spawn("git", ["remote", "add", tempBranchName, _tmpDir], { cwd });
+      await spawn("git", ["fetch", "--no-tags", tempBranchName], { cwd });
 
       try {
-        await spawn('git', ['cherry-pick', '--no-commit', sha.trim()], { cwd });
+        await spawn("git", ["cherry-pick", "--no-commit", sha.trim()], { cwd });
       } catch (err) {
         hasConflicts = true;
       }
 
-      await spawn('git', ['remote', 'remove', tempBranchName], { cwd });
+      await spawn("git", ["remote", "remove", tempBranchName], { cwd });
     }
   }
 
   try {
     if (startTag === endTag && !(reset || init)) {
-      throw 'Tags match, nothing to apply';
+      throw "Tags match, nothing to apply";
     }
 
     let isClean;
@@ -222,11 +224,11 @@ module.exports = async function gitDiffApply({
     try {
       isClean = await isGitClean({ cwd });
     } catch (err) {
-      throw 'Not a git repository';
+      throw "Not a git repository";
     }
 
     if (!isClean) {
-      throw 'You must start with a clean working directory';
+      throw "You must start with a clean working directory";
     }
 
     if (createCustomDiff) {
@@ -236,7 +238,7 @@ module.exports = async function gitDiffApply({
         startTag: safeStartTag,
         endTag: safeEndTag,
         reset,
-        init
+        init,
       });
 
       remoteUrl = tmpPath;
@@ -245,7 +247,7 @@ module.exports = async function gitDiffApply({
     _tmpDir = await tmpDir();
     tmpWorkingDir = _tmpDir;
 
-    await spawn('git', ['clone', remoteUrl, _tmpDir]);
+    await spawn("git", ["clone", remoteUrl, _tmpDir]);
 
     // needed because we are going to be committing in here
     await gitConfigInit({ cwd: _tmpDir });
@@ -255,48 +257,42 @@ module.exports = async function gitDiffApply({
     root = await getRootDir({ cwd });
     let subDir = await getSubDir({ cwd });
     if (subDir) {
-      debug('subDir', subDir);
-
       await namespaceRepoWithSubDir(subDir);
     }
 
     await go();
-
-    debug('success');
   } catch (_err) {
     err = _err;
 
     try {
       if (isCodeUntracked) {
-        await spawn('git', ['clean', '-f'], { cwd });
+        await spawn("git", ["clean", "-f"], { cwd });
       }
       if (isCodeModified) {
-        await spawn('git', ['reset', '--hard'], { cwd });
+        await spawn("git", ["reset", "--hard"], { cwd });
       }
     } catch (err2) {
       throw {
         err,
-        err2
+        err2,
       };
     }
   }
 
   if (err) {
-    debug('failure');
-
     throw err;
   }
 
   if (hasConflicts && _resolveConflicts) {
-    let processOpts = typeof _resolveConflicts === 'object' ? _resolveConflicts : {};
-    returnObject.resolveConflictsProcess = resolveConflicts({ cwd, ...processOpts });
+    let processOpts =
+      typeof _resolveConflicts === "object" ? _resolveConflicts : {};
+    returnObject.resolveConflictsProcess = resolveConflicts({
+      cwd,
+      ...processOpts,
+    });
   }
 
   return returnObject;
-};
+}
 
-module.exports.run = exec;
-module.exports.gitInit = gitInit;
-module.exports.gitStatus = gitStatus;
-module.exports.isGitClean = isGitClean;
-module.exports.gitRemoveAll = gitRemoveAll;
+export { exec, gitInit, gitStatus, isGitClean, gitRemoveAll };

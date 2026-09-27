@@ -1,5 +1,7 @@
-'use strict';
+import { copy } from "./copy.js";
+import { spawn } from "./run.js";
+import { gitRemoveAll } from "./git-remove-all.js";
 
-module.exports.copy = require('./copy');
-module.exports.spawn = require('./run').spawn;
-module.exports.gitRemoveAll = require('./git-remove-all');
+const utils = { copy, spawn, gitRemoveAll };
+
+export default utils;

@@ -1,22 +1,37 @@
 {
   "name": "@phated/git-diff-apply",
   "version": "0.22.10",
-  "description": "(Fork) Use an unrelated remote repository to apply a git diff",
-  "main": "src",
-  "files": [
-    "bin",
-    "src"
-  ],
-  "bin": {
-    "git-diff-apply": "bin/git-diff-apply.js"
-  },
-  "scripts": {
-    "lint": "eslint . --ext js,json",
-    "test": "mocha test/**/*-test.js"
-  },
+  "description": "Apply a git diff from an unrelated remote repository",
+  "author": "Blaine Bublitz <blaine.bublitz@gmail.com>",
+  "funding": "https://github.com/sponsors/phated",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/kellyselden/git-diff-apply.git"
+    "url": "git+https://github.com/phated/git-diff-apply.git"
+  },
+  "license": "MIT",
+  "engines": {
+    "node": ">= 22.15.0"
+  },
+  "type": "module",
+  "main": "./src/index.js",
+  "exports": "./src/index.js",
+  "files": [
+    "src",
+    "LICENSE"
+  ],
+  "scripts": {
+    "format-check": "prettier . --check",
+    "format-write": "prettier . --write",
+    "lint": "eslint .",
+    "test": "node --test --experimental-test-coverage --test-reporter=spec --test-reporter-destination=stdout --test-reporter=lcov --test-reporter-destination=test/lcov.info \"test/**/*-test.js\""
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "eslint": "^10.11.0",
+    "eslint-config-gulp": "7.0.0",
+    "fixturify": "^3.0.0",
+    "fixturify-project": "^2.1.1",
+    "prettier": "3.9.6"
   },
   "keywords": [
     "patch",
@@ -27,41 +42,5 @@
     "mergetool",
     "update",
     "conflict"
-  ],
-  "author": "Kelly Selden",
-  "license": "MIT",
-  "bugs": {
-    "url": "https://github.com/kellyselden/git-diff-apply/issues"
-  },
-  "homepage": "https://github.com/kellyselden/git-diff-apply#readme",
-  "engines": {
-    "node": ">=10.12"
-  },
-  "dependencies": {
-    "debug": "^4.0.0",
-    "fixturify": "^2.0.0",
-    "fs-extra": "^9.0.0",
-    "tmp": "0.2.1",
-    "uuid": "^3.1.0",
-    "yargs": "^16.0.0"
-  },
-  "devDependencies": {
-    "@kellyselden/node-template": "1.2.2",
-    "chai": "^4.2.0",
-    "cpr": "^3.0.1",
-    "eslint": "^7.8.1",
-    "eslint-config-sane": "0.8.5",
-    "eslint-config-sane-node": "0.3.0",
-    "eslint-plugin-json-files": "0.8.1",
-    "eslint-plugin-mocha": "^8.0.0",
-    "eslint-plugin-node": "^11.1.0",
-    "eslint-plugin-prefer-let": "^1.0.2",
-    "fixturify-project": "^2.0.0",
-    "git-fixtures": "^2.3.0",
-    "mocha": "^8.1.3",
-    "mocha-helpers": "^5.0.0",
-    "renovate-config-standard": "^2.0.0",
-    "sinon": "^9.0.0",
-    "standard-node-template": "1.0.0"
-  }
+  ]
 }

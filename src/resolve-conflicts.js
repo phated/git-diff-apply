@@ -1,11 +1,6 @@
-'use strict';
+import { spawn } from "node:child_process";
 
-const { spawn } = require('child_process');
-const debug = require('debug')('git-diff-apply');
-
-module.exports = function resolveConflicts(options) {
-  debug('git mergetool');
-
+export function resolveConflicts(options) {
   // pipe for those using as a library can interact
-  return spawn('git', ['mergetool'], options);
-};
+  return spawn("git", ["mergetool"], options);
+}

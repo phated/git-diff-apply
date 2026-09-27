@@ -1,35 +1,34 @@
-'use strict';
+import assert from "node:assert";
+import { describe, it } from "node:test";
 
-const { describe, it } = require('../helpers/mocha');
-const { expect } = require('../helpers/chai');
-const copyRegex = require('../../src/copy-regex');
+import { copyRegex } from "../../src/copy-regex.js";
 
-describe(copyRegex, function() {
-  it('exludes git files', function() {
-    expect('git').to.match(copyRegex);
-    expect('.git').to.not.match(copyRegex);
-    expect('.git/').to.not.match(copyRegex);
-    expect('.git\\').to.not.match(copyRegex);
-    expect('.git/foo').to.not.match(copyRegex);
-    expect('.git\\foo').to.not.match(copyRegex);
-    expect('.gitignore').to.match(copyRegex);
-    expect('foo.git').to.match(copyRegex);
-    expect('foo/.git').to.not.match(copyRegex);
-    expect('foo\\.git').to.not.match(copyRegex);
+describe("copyRegex", function () {
+  it("exludes git files", function () {
+    assert.match("git", copyRegex);
+    assert.doesNotMatch(".git", copyRegex);
+    assert.doesNotMatch(".git/", copyRegex);
+    assert.doesNotMatch(".git\\", copyRegex);
+    assert.doesNotMatch(".git/foo", copyRegex);
+    assert.doesNotMatch(".git\\foo", copyRegex);
+    assert.match(".gitignore", copyRegex);
+    assert.match("foo.git", copyRegex);
+    assert.doesNotMatch("foo/.git", copyRegex);
+    assert.doesNotMatch("foo\\.git", copyRegex);
   });
 
-  it('exludes node_modules', function() {
-    expect('node_modules').to.not.match(copyRegex);
-    expect('node_moduless').to.match(copyRegex);
-    expect('nnode_modules').to.match(copyRegex);
-    expect('node_modules/foo').to.not.match(copyRegex);
-    expect('node_modules\\foo').to.not.match(copyRegex);
-    expect('foo/node_modules').to.not.match(copyRegex);
-    expect('foo\\node_modules').to.not.match(copyRegex);
+  it("exludes node_modules", function () {
+    assert.doesNotMatch("node_modules", copyRegex);
+    assert.match("node_moduless", copyRegex);
+    assert.match("nnode_modules", copyRegex);
+    assert.doesNotMatch("node_modules/foo", copyRegex);
+    assert.doesNotMatch("node_modules\\foo", copyRegex);
+    assert.doesNotMatch("foo/node_modules", copyRegex);
+    assert.doesNotMatch("foo\\node_modules", copyRegex);
   });
 
-  it('includes everything else', function() {
-    expect('foo/bar').to.match(copyRegex);
-    expect('foo\\bar').to.match(copyRegex);
+  it("includes everything else", function () {
+    assert.match("foo/bar", copyRegex);
+    assert.match("foo\\bar", copyRegex);
   });
 });

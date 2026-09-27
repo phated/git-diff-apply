@@ -1,53 +1,53 @@
-'use strict';
+import os from "node:os";
+import fs from "node:fs/promises";
+import path from "node:path";
 
-const { exec, spawn } = require('./run');
-const gitInit = require('./git-init');
-const commitAndTag = require('./commit-and-tag');
-const gitRemoveAll = require('./git-remove-all');
-const { promisify } = require('util');
-const tmpDir = promisify(require('tmp').dir);
+import { exec, spawn } from "./run.js";
+import { gitInit } from "./git-init.js";
+import { commitAndTag } from "./commit-and-tag.js";
+import { gitRemoveAll } from "./git-remove-all.js";
 
-module.exports = async function createCustomRemote({
+export async function createCustomRemote({
   startCommand,
   endCommand,
   startTag,
   endTag,
   reset,
-  init
+  init,
 }) {
-  let cwd = await tmpDir();
+  let cwd = await fs.mkdtemp(path.join(os.tmpdir(), "git-diff-apply-"));
 
   await gitInit({
-    cwd
+    cwd,
   });
 
   // If one tag is CRLF and the other LF, the diff becomes unusable.
   // This will work around that,
-  await spawn('git', ['config', 'core.autocrlf', 'true'], {
-    cwd
+  await spawn("git", ["config", "core.autocrlf", "true"], {
+    cwd,
   });
 
   if (!(reset || init)) {
     await exec(startCommand, {
-      cwd
+      cwd,
     });
 
     await commitAndTag(startTag, {
-      cwd
+      cwd,
     });
 
     await gitRemoveAll({
-      cwd
+      cwd,
     });
   }
 
   await exec(endCommand, {
-    cwd
+    cwd,
   });
 
   await commitAndTag(endTag, {
-    cwd
+    cwd,
   });
 
   return cwd;
-};
+}
