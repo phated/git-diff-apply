@@ -1,6 +1,6 @@
 {
   "name": "@phated/git-diff-apply",
-  "version": "0.22.10",
+  "version": "1.0.0",
   "description": "Apply a git diff from an unrelated remote repository",
   "author": "Blaine Bublitz <blaine.bublitz@gmail.com>",
   "funding": "https://github.com/sponsors/phated",
